@@ -2,164 +2,160 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Users, 
-  Search, 
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Loader2
+  CheckCircle2, 
+  BarChart3, 
+  Shield, 
+  TrendingUp,
+  Activity
 } from 'lucide-react';
+import { db } from '../lib/db';
 import { AppUser } from '../types';
-import { cn } from '../lib/utils';
-import { api } from '../lib/api';
+
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
 
 export default function AdminPanel() {
   const [users, setUsers] = useState<AppUser[]>([]);
-  const [systemStats, setSystemStats] = useState({ totalTasks: 0, completedTasks: 0, totalUsers: 0 });
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    activeUsers: 0
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [usersData, statsData] = await Promise.all([
-          api.get('/admin/users'),
-          api.get('/admin/stats')
-        ]);
-        setUsers(usersData);
-        setSystemStats(statsData);
-      } catch (err) {
-        console.error('Failed to fetch admin data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    const data = db.get();
+    setUsers(data.users);
+    setStats(db.getStats());
   }, []);
 
-  const toggleRole = async (uid: string, currentRole: string) => {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    try {
-      await api.patch(`/admin/users/${uid}/role`, { role: newRole });
-      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole as any } : u));
-    } catch (error) {
-      console.error("Failed to update role", error);
-    }
-  };
-
-  const filteredUsers = users.filter(u => 
-    u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="p-10 max-w-6xl mx-auto">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-10 flex items-center justify-between"
-      >
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">System Administration</h2>
-          <p className="text-slate-400 font-medium">Manage user roles and monitor application-wide metrics.</p>
-        </div>
-        <div className="flex gap-4">
-          <div className="bg-white px-6 py-4 rounded-3xl border border-slate-100 shadow-sm text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Users</p>
-            <p className="text-2xl font-black text-slate-900">{systemStats.totalUsers}</p>
-          </div>
-          <div className="bg-white px-6 py-4 rounded-3xl border border-slate-100 shadow-sm text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Tasks</p>
-            <p className="text-2xl font-black text-slate-900">{systemStats.totalTasks}</p>
-          </div>
-        </div>
+    <motion.div 
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="max-w-6xl mx-auto px-8 py-12"
+    >
+      <motion.div variants={item} className="mb-12">
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2">
+          Performance Overview
+        </h1>
+        <p className="text-slate-500 font-medium">System-wide analytics and user management.</p>
       </motion.div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-          <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
-            <Users className="w-6 h-6 text-indigo-600" />
-            User Directory
-          </h3>
-          <div className="relative w-64">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search users..."
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
-            />
-          </div>
-        </div>
+      {/* Stats Grid */}
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <StatCard 
+          label="Total Users" 
+          value={stats.totalUsers} 
+          icon={<Users className="w-6 h-6" />} 
+          color="bg-blue-500" 
+        />
+        <StatCard 
+          label="Total Tasks" 
+          value={stats.totalTasks} 
+          icon={<BarChart3 className="w-6 h-6" />} 
+          color="bg-indigo-500" 
+        />
+        <StatCard 
+          label="Completed" 
+          value={stats.completedTasks} 
+          icon={<CheckCircle2 className="w-6 h-6" />} 
+          color="bg-emerald-500" 
+        />
+        <StatCard 
+          label="Active Today" 
+          value={stats.activeUsers} 
+          icon={<Activity className="w-6 h-6" />} 
+          color="bg-orange-500" 
+        />
+      </motion.div>
 
+      {/* Users Table */}
+      <motion.div variants={item} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+        <div className="p-8 border-bottom border-slate-50 flex items-center justify-between">
+          <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-indigo-600" />
+            User Management
+          </h2>
+          <span className="px-4 py-1 bg-indigo-50 text-indigo-600 text-xs font-black rounded-full uppercase tracking-wider">
+            {users.length} Registered
+          </span>
+        </div>
+        
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="px-8 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">User</th>
-                <th className="px-8 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Role</th>
-                <th className="px-8 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Joined</th>
-                <th className="px-8 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                <th className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">User</th>
+                <th className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Role</th>
+                <th className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Joined</th>
+                <th className="px-8 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filteredUsers.map((user) => (
-                <tr key={user.uid} className="hover:bg-slate-50/30 transition-colors">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black">
                         {user.displayName.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900">{user.displayName}</p>
-                        <p className="text-xs text-slate-400 font-medium">{user.email}</p>
+                        <div className="font-bold text-slate-900">{user.displayName}</div>
+                        <div className="text-xs text-slate-400 font-medium">{user.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-8 py-5">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                      user.role === 'admin' 
-                        ? "bg-indigo-100 text-indigo-600" 
-                        : "bg-slate-100 text-slate-500"
-                    )}>
+                  <td className="px-8 py-6">
+                    <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                      user.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-8 py-5 text-sm text-slate-500 font-medium">
+                  <td className="px-8 py-6 text-sm text-slate-500 font-medium">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-8 py-5 text-right">
-                    <button 
-                      onClick={() => toggleRole(user.uid, user.role)}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
-                    >
-                      {user.role === 'admin' ? (
-                        <>
-                          <ArrowDownCircle className="w-4 h-4" />
-                          Demote
-                        </>
-                      ) : (
-                        <>
-                          <ArrowUpCircle className="w-4 h-4" />
-                          Promote
-                        </>
-                      )}
-                    </button>
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-2 text-emerald-500 text-xs font-bold">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Active
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function StatCard({ label, value, icon, color }: any) {
+  return (
+    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/50 group hover:scale-[1.02] transition-all">
+      <div className="flex items-start justify-between mb-6">
+        <div className={`w-12 h-12 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg shadow-current/20`}>
+          {icon}
+        </div>
+        <TrendingUp className="w-5 h-5 text-slate-200 group-hover:text-emerald-500 transition-colors" />
       </div>
+      <div className="text-3xl font-black text-slate-900 mb-1">{value}</div>
+      <div className="text-sm font-bold text-slate-400 uppercase tracking-wider">{label}</div>
     </div>
   );
 }

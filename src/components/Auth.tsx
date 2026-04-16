@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ListTodo, Mail, Lock, User, ArrowRight, Github, AlertCircle, Loader2 } from 'lucide-react';
+import { ListTodo, Mail, Lock, User, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { useUser } from '../context/UserContext';
+import { db } from '../lib/db';
+import { AppUser } from '../types';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +15,7 @@ export default function Auth() {
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
+  const { login } = useUser();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,14 +23,31 @@ export default function Auth() {
     setError('');
     
     try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/signup';
-      const payload = isLogin 
-        ? { email, password } 
-        : { email, password, displayName: name };
+      if (isLogin) {
+        const user = db.getUserByEmail(email);
+        if (!user) throw new Error('User not found');
+        // In a real app we'd check password here
+        login(user);
+        navigate(user.role === 'ADMIN' ? '/admin' : '/dashboard');
+      } else {
+        const existing = db.getUserByEmail(email);
+        if (existing) throw new Error('Email already registered');
+
+        // Logic: Hanzala Ahmed is ADMIN, others are USER
+        const role = name.toLowerCase() === 'hanzala ahmed' ? 'ADMIN' : 'USER';
         
-      const data = await api.post(endpoint, payload);
-      localStorage.setItem('taskmaster-token', data.token);
-      navigate('/dashboard');
+        const newUser: AppUser = {
+          id: Math.random().toString(36).substr(2, 9),
+          email,
+          displayName: name,
+          role,
+          createdAt: Date.now()
+        };
+
+        db.addUser(newUser);
+        login(newUser);
+        navigate(role === 'ADMIN' ? '/admin' : '/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {

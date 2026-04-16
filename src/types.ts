@@ -1,8 +1,8 @@
 export type Priority = 'low' | 'medium' | 'high';
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'ADMIN' | 'USER';
 
 export interface AppUser {
-  uid: string;
+  id: string;
   email: string;
   displayName: string;
   role: UserRole;
@@ -17,7 +17,12 @@ export interface Todo {
   priority: Priority;
   dueDate?: string;
   createdAt: number;
-  userId: string;
+  createdBy: string; // User ID
+}
+
+export interface TaskMasterDB {
+  users: AppUser[];
+  tasks: Todo[];
 }
 
 export type FilterType = 'all' | 'active' | 'completed' | 'important';
