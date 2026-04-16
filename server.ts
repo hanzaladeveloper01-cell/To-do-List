@@ -43,6 +43,9 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // --- Health Check ---
+  app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
   // --- Auth Routes ---
   app.post('/api/auth/signup', async (req, res) => {
     const { email, password, displayName } = req.body;

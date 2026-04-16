@@ -1,4 +1,4 @@
-const API_URL = '/api';
+const API_URL = window.location.origin + '/api';
 
 const getHeaders = () => {
   const token = localStorage.getItem('taskmaster-token');
