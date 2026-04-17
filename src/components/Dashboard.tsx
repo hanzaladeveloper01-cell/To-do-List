@@ -56,19 +56,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
+      const existingTasks = db.getTasks(user.id, false);
+      if (existingTasks.length === 0) {
+        // High-fidelity sample tasks
+        const samples: Todo[] = [
+          { id: '1', text: 'Refine brand identity for TaskMaster Elite', completed: false, priority: 'high', createdAt: Date.now() - 3600000, createdBy: user.id },
+          { id: '2', text: 'Audit Q3 productivity metrics and generate report', completed: true, priority: 'medium', createdAt: Date.now() - 7200000, createdBy: user.id },
+          { id: '3', text: 'Coordinate with design team on micro-interactions', completed: false, priority: 'high', createdAt: Date.now() - 10800000, createdBy: user.id },
+          { id: '4', text: 'Onboard new performance analytics software', completed: false, priority: 'low', createdAt: Date.now() - 14400000, createdBy: user.id },
+          { id: '5', text: 'Review feedback from commercial focus group', completed: false, priority: 'medium', createdAt: Date.now() - 18000000, createdBy: user.id },
+        ];
+        samples.forEach(s => db.addTask(s));
+      }
       refreshTasks();
     }
   }, [user]);
 
   const refreshTasks = () => {
     if (user) {
-      // Admin actually sees all tasks in AdminPanel, but here we stay user-focused
       setTodos(db.getTasks(user.id, false));
     }
   };
 
-  const addTodo = (e: React.FormEvent) => {
-    e.preventDefault();
+  const addTodo = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!newTodo.trim() || !user) return;
 
     const task: Todo = {
@@ -83,6 +94,12 @@ export default function Dashboard() {
     db.addTask(task);
     setNewTodo('');
     refreshTasks();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      addTodo();
+    }
   };
 
   const toggleTodo = (id: string) => {
@@ -153,6 +170,18 @@ export default function Dashboard() {
 
   const viewInfo = viewMapping[currentView];
 
+  const stats = useMemo(() => {
+    const total = todos.length;
+    const completed = todos.filter(t => t.completed).length;
+    const pending = total - completed;
+    return { 
+      total, 
+      completed, 
+      pending, 
+      percent: total > 0 ? Math.round((completed / total) * 100) : 0 
+    };
+  }, [todos]);
+
   if (currentView === 'stats') {
     return <UserStats todos={todos} />;
   }
@@ -162,178 +191,163 @@ export default function Dashboard() {
       variants={container}
       initial="hidden"
       animate="show"
-      className="max-w-6xl mx-auto px-8 py-12"
+      className="max-w-6xl mx-auto px-10 py-16"
     >
-      {/* Header */}
-      <motion.div variants={item} className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-        <div className="flex items-center gap-4">
-          <div className={cn("p-4 rounded-3xl bg-white shadow-xl shadow-slate-200/50", viewInfo.color)}>
-            <viewInfo.icon className="w-8 h-8" />
+      {/* Header - Unified Horizontal */}
+      <motion.div variants={item} className="mb-14 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="flex items-center gap-6">
+          <div className={cn("w-16 h-16 rounded-[2rem] bg-white shadow-xl shadow-slate-200/50 flex items-center justify-center border border-slate-50", viewInfo.color)}>
+            <viewInfo.icon className="w-8 h-8 stroke-[2.5]" />
           </div>
           <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-2">
               {viewInfo.title}
             </h1>
-            <p className="text-slate-500 font-medium">{viewInfo.subtitle}</p>
+            <p className="text-slate-400 font-bold text-sm tracking-wide">{viewInfo.subtitle}</p>
           </div>
         </div>
 
-        {currentView === 'completed' ? (
-          <button 
-            onClick={clearCompleted}
-            className="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-black hover:bg-red-100 transition-all shadow-sm"
-          >
-            Purge History
-          </button>
-        ) : (
-          <div className="flex bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm items-center gap-2">
-            <Activity className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm font-black text-slate-900">{filteredTodos.length} Tasks Pending</span>
+        <div className="flex bg-blue-50/50 px-6 py-3 rounded-2xl border border-blue-600/10 items-center gap-3">
+          <Activity className="w-4 h-4 text-blue-600" />
+          <span className="text-sm font-black text-blue-800 tracking-tight">{filteredTodos.length} Tasks Pending</span>
+        </div>
+      </motion.div>
+
+      {/* Action Bar & Smart Input Bar */}
+      <motion.div variants={item} className="space-y-4 mb-14">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-12">
+            <motion.div 
+              whileFocus={{ scale: 1.01 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="relative group col-span-full"
+            >
+              <input
+                type="text"
+                placeholder="Commit to a new objective..."
+                value={newTodo}
+                onChange={(e) => setNewTodo(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full pl-8 pr-20 py-6 bg-white border border-slate-200/60 rounded-[2rem] outline-none shadow-xl shadow-slate-100/50 focus:border-blue-600/20 focus:ring-8 ring-blue-600/5 transition-all text-lg font-bold placeholder:text-slate-300"
+              />
+              <button
+                onClick={() => addTodo()}
+                title="Add Task"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-14 h-14 bg-blue-600 text-white rounded-[1.25rem] flex items-center justify-center hover:scale-105 hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200 group/btn overflow-hidden"
+              >
+                <Plus className="w-7 h-7 stroke-[3]" />
+                <span className="sr-only">Add Task</span>
+              </button>
+            </motion.div>
           </div>
-        )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative group">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+            <input
+              type="text"
+              placeholder="Search workspace..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200/40 rounded-2xl outline-none focus:border-blue-600/20 focus:bg-white transition-all font-bold text-sm placeholder:text-slate-300"
+            />
+          </div>
+          
+          <div className="relative">
+            <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as FilterType)}
+              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200/40 rounded-2xl outline-none focus:border-blue-600/20 focus:bg-white transition-all font-bold text-sm appearance-none cursor-pointer"
+            >
+              <option value="all">Filter: All</option>
+              <option value="active">Active Only</option>
+              <option value="completed">Completed</option>
+              <option value="important">High Priority</option>
+            </select>
+          </div>
+
+          <div className="relative">
+            <SortAsc className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortType)}
+              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200/40 rounded-2xl outline-none focus:border-blue-600/20 focus:bg-white transition-all font-bold text-sm appearance-none cursor-pointer"
+            >
+              <option value="date">Sort: Recency</option>
+              <option value="priority">Sort: Priority</option>
+              <option value="alphabetical">Sort: Alpha</option>
+            </select>
+          </div>
+        </div>
       </motion.div>
 
-      {/* Action Bar */}
-      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8">
-        <div className="md:col-span-6 relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
-          <input
-            type="text"
-            placeholder="Search workspace..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-50 rounded-[1.5rem] outline-none focus:border-indigo-600/20 shadow-xl shadow-slate-200/20 transition-all font-bold placeholder:text-slate-300"
-          />
-        </div>
-        
-        <div className="md:col-span-3 relative">
-          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as FilterType)}
-            className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-50 rounded-[1.5rem] outline-none focus:border-indigo-600/20 shadow-xl shadow-slate-200/20 transition-all font-bold appearance-none"
-          >
-            <option value="all">Filter: All</option>
-            <option value="active">Active Only</option>
-            <option value="completed">Completed</option>
-            <option value="important">High Priority</option>
-          </select>
-        </div>
-
-        <div className="md:col-span-3 relative">
-          <SortAsc className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortType)}
-            className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-50 rounded-[1.5rem] outline-none focus:border-indigo-600/20 shadow-xl shadow-slate-200/20 transition-all font-bold appearance-none"
-          >
-            <option value="date">Sort: Recency</option>
-            <option value="priority">Sort: Priority</option>
-            <option value="alphabetical">Sort: Alpha</option>
-          </select>
-        </div>
-      </motion.div>
-
-      {/* Add Task Input (Only for active views) */}
-      {currentView !== 'completed' && (
-        <motion.form 
-          variants={item}
-          onSubmit={addTodo} 
-          className="mb-12 relative group"
-        >
-          <input
-            type="text"
-            placeholder="Commit to a new objective..."
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            className="w-full pl-8 pr-16 py-6 bg-slate-900 text-white placeholder:text-slate-500 rounded-[2.5rem] outline-none shadow-2xl shadow-slate-900/20 focus:ring-8 ring-indigo-600/10 transition-all text-xl font-bold"
-          />
-          <button
-            type="submit"
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 bg-indigo-600 text-white rounded-[1.25rem] flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg hover:bg-indigo-500"
-          >
-            <Plus className="w-8 h-8" />
-          </button>
-        </motion.form>
-      )}
-
-      {/* Task Grid */}
-      <motion.div variants={item} className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        <AnimatePresence mode="popLayout">
+      {/* Task List */}
+      <motion.div variants={item} className="grid grid-cols-1 gap-4">
+        <AnimatePresence mode="popLayout" initial={false}>
           {filteredTodos.map((todo) => (
             <motion.div
               key={todo.id}
               layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, x: -20, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
               className={cn(
-                "group bg-white p-6 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/40 hover:shadow-xl hover:shadow-indigo-600/5 transition-all relative overflow-hidden",
-                todo.completed && "opacity-60 grayscale-[0.5]"
+                "group bg-white pl-7 pr-6 py-4 rounded-[2rem] border border-slate-200/50 shadow-sm hover:shadow-xl hover:shadow-blue-600/[0.04] hover:border-blue-600/20 transition-all duration-500 relative flex items-center gap-6 overflow-hidden",
+                todo.completed && "opacity-60 bg-slate-50/50 grayscale-[0.2]"
               )}
             >
-              <div className="flex items-start gap-5 relative z-10">
-                <button
-                  onClick={() => toggleTodo(todo.id)}
-                  className={cn(
-                    "mt-1 w-8 h-8 rounded-[1rem] border-2 flex items-center justify-center transition-all shrink-0",
-                    todo.completed 
-                      ? "bg-indigo-600 border-indigo-600 text-white" 
-                      : "border-slate-200 hover:border-indigo-600"
-                  )}
-                >
-                  {todo.completed && <CheckCircle2 className="w-5 h-5" />}
-                </button>
+              {/* Checkbox */}
+              <button
+                onClick={() => toggleTodo(todo.id)}
+                className={cn(
+                  "w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-500 shrink-0",
+                  todo.completed 
+                    ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
+                    : "border-slate-200 hover:border-blue-600 hover:scale-110 active:scale-90"
+                )}
+              >
+                {todo.completed && <CheckCircle2 className="w-4 h-4 stroke-[3]" />}
+              </button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <h3 className={cn(
-                      "text-xl font-black text-slate-900 leading-tight transition-all",
-                      todo.completed && "line-through text-slate-400"
-                    )}>
-                      {todo.text}
-                    </h3>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-xl text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                      <Clock className="w-3.5 h-3.5" />
-                      {new Date(todo.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                    </div>
-                    
-                    <div className="relative">
-                      <select
-                        value={todo.priority}
-                        onChange={(e) => updatePriority(todo.id, e.target.value as Priority)}
-                        className={cn(
-                          "appearance-none px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer transition-all pr-8",
-                          todo.priority === 'high' ? "bg-red-50 text-red-600" :
-                          todo.priority === 'medium' ? "bg-amber-50 text-amber-600" :
-                          "bg-emerald-50 text-emerald-600"
-                        )}
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Mid</option>
-                        <option value="high">Critical</option>
-                      </select>
-                      <Tag className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-40" />
-                    </div>
-                  </div>
+              <div className="flex-1 min-w-0">
+                <h3 className={cn(
+                  "text-[17px] font-black text-slate-900 tracking-tight transition-all duration-500",
+                  todo.completed && "line-through text-slate-400 decoration-slate-300 font-bold"
+                )}>
+                  {todo.text}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-8 shrink-0">
+                {/* Priority Dot */}
+                <div className="flex items-center gap-2.5">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    todo.priority === 'high' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' :
+                    todo.priority === 'medium' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' :
+                    'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                  )} />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{todo.priority}</span>
                 </div>
 
-                <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 group-hover:scale-110 transition-transform">
+                  <Clock className="w-3.5 h-3.5 text-slate-300" />
+                  <span className="text-xs font-bold text-slate-400 tabular-nums">
+                    {new Date(todo.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
                   <button
                     onClick={() => deleteTodo(todo.id)}
-                    className="p-2.5 text-slate-300 hover:text-white hover:bg-slate-900 rounded-xl transition-all"
+                    className="p-2.5 text-slate-300 hover:text-white hover:bg-slate-900 rounded-xl transition-all shadow-sm"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
-              
-              {/* Subtle background number/decoration */}
-              <div className="absolute -right-4 -bottom-4 text-slate-50 font-black text-8xl pointer-events-none select-none italic opacity-50">
-                #0{filteredTodos.indexOf(todo) + 1}
               </div>
             </motion.div>
           ))}
@@ -341,19 +355,50 @@ export default function Dashboard() {
 
         {filteredTodos.length === 0 && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="lg:col-span-2 text-center py-32 bg-slate-50 rounded-[4rem] border-4 border-dashed border-slate-100"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-40 bg-slate-50/50 rounded-[4rem] border-2 border-dashed border-slate-200/60"
           >
-            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-slate-200/50">
-              <ListTodo className="w-10 h-10 text-slate-200" />
-            </div>
-            <h3 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Workspace Clear</h3>
-            <p className="text-slate-400 font-bold max-w-sm mx-auto">
+            <motion.div 
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+              className="w-24 h-24 bg-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-slate-200/50 border border-slate-50"
+            >
+              <ListTodo className="w-10 h-10 text-slate-300 stroke-[1.5]" />
+            </motion.div>
+            <h3 className="text-3xl font-black text-slate-900 mb-3 tracking-tighter">Workspace Clear</h3>
+            <p className="text-slate-400 font-bold max-w-sm mx-auto tracking-tight">
               You've cleared everything in this view. Ready to commit to something new?
             </p>
           </motion.div>
         )}
+      </motion.div>
+
+      {/* Progress Bar Footer */}
+      <motion.div variants={item} className="mt-16 pt-8 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4 group">
+          <div className="w-40 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${stats.percent}%` }}
+              className="h-full bg-blue-600 shadow-[0_0_12px_rgba(37,99,235,0.4)]" 
+            />
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+            <span className="text-slate-900">{stats.completed}</span> of <span className="text-slate-900">{stats.total}</span> initiatives finalized
+          </span>
+        </div>
+
+        <div className="flex items-center gap-8 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+            TaskMaster Elite Engine v1.0
+          </div>
+          <div className="flex items-center gap-2">
+            <Activity className="w-3 h-3 text-blue-600" />
+            Global Sync Active
+          </div>
+        </div>
       </motion.div>
     </motion.div>
   );
