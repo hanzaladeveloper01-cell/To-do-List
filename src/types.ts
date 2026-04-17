@@ -5,6 +5,7 @@ export interface AppUser {
   id: string;
   email: string;
   displayName: string;
+  password?: string; // Stored as hash
   role: UserRole;
   createdAt: number;
 }

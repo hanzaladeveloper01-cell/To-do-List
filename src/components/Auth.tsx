@@ -6,6 +6,8 @@ import { useUser } from '../context/UserContext';
 import { db } from '../lib/db';
 import { AppUser } from '../types';
 
+import bcrypt from 'bcryptjs';
+
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,13 @@ export default function Auth() {
       if (isLogin) {
         const user = db.getUserByEmail(email);
         if (!user) throw new Error('User not found');
-        // In a real app we'd check password here
+        
+        // Security: Check password hash
+        if (user.password) {
+          const isValid = await bcrypt.compare(password, user.password);
+          if (!isValid) throw new Error('Invalid password');
+        }
+        
         login(user);
         navigate(user.role === 'ADMIN' ? '/admin' : '/dashboard');
       } else {
@@ -34,12 +42,17 @@ export default function Auth() {
         if (existing) throw new Error('Email already registered');
 
         // Logic: Hanzala Ahmed is ADMIN, others are USER
-        const role = name.toLowerCase() === 'hanzala ahmed' ? 'ADMIN' : 'USER';
+        const role = name.trim().toLowerCase() === 'hanzala ahmed' ? 'ADMIN' : 'USER';
+        
+        // Security: Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
         
         const newUser: AppUser = {
           id: Math.random().toString(36).substr(2, 9),
           email,
           displayName: name,
+          password: hashedPassword,
           role,
           createdAt: Date.now()
         };

@@ -56,18 +56,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      const existingTasks = db.getTasks(user.id, false);
-      if (existingTasks.length === 0) {
-        // High-fidelity sample tasks
-        const samples: Todo[] = [
-          { id: '1', text: 'Refine brand identity for TaskMaster Elite', completed: false, priority: 'high', createdAt: Date.now() - 3600000, createdBy: user.id },
-          { id: '2', text: 'Audit Q3 productivity metrics and generate report', completed: true, priority: 'medium', createdAt: Date.now() - 7200000, createdBy: user.id },
-          { id: '3', text: 'Coordinate with design team on micro-interactions', completed: false, priority: 'high', createdAt: Date.now() - 10800000, createdBy: user.id },
-          { id: '4', text: 'Onboard new performance analytics software', completed: false, priority: 'low', createdAt: Date.now() - 14400000, createdBy: user.id },
-          { id: '5', text: 'Review feedback from commercial focus group', completed: false, priority: 'medium', createdAt: Date.now() - 18000000, createdBy: user.id },
-        ];
-        samples.forEach(s => db.addTask(s));
-      }
       refreshTasks();
     }
   }, [user]);
