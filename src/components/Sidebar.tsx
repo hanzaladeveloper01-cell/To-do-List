@@ -3,10 +3,15 @@ import {
   ListTodo, 
   LayoutDashboard, 
   LogOut,
-  ShieldAlert
+  ShieldAlert,
+  BarChart2,
+  ListTodo as ListIcon,
+  Zap,
+  History
 } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { ViewType } from '../types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -17,19 +22,39 @@ function cn(...inputs: ClassValue[]) {
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useUser();
+
+  const currentView = searchParams.get('view') || 'today';
 
   const handleLogout = () => {
     logout();
     navigate('/auth');
   };
 
-  const navItems = [
-    { id: 'dashboard', label: 'Daily Priorities', icon: LayoutDashboard, path: '/dashboard', role: 'USER' },
+  const navItems: { id: ViewType; label: string; icon: any; path: string; role: 'ADMIN' | 'USER' }[] = [
+    { id: 'today', label: 'Focus View: Today', icon: Zap, path: '/dashboard?view=today', role: 'USER' },
+    { id: 'all', label: 'Master Task List', icon: ListIcon, path: '/dashboard?view=all', role: 'USER' },
+    { id: 'important', label: 'Critical Actions', icon: ShieldAlert, path: '/dashboard?view=important', role: 'USER' },
+    { id: 'completed', label: 'Archived Tasks', icon: History, path: '/dashboard?view=completed', role: 'USER' },
+    { id: 'stats', label: 'Productivity Stats', icon: BarChart2, path: '/dashboard?view=stats', role: 'USER' },
     { id: 'admin', label: 'Admin Panel', icon: ShieldAlert, path: '/admin', role: 'ADMIN' },
   ];
 
   const filteredNav = navItems.filter(item => item.role === user?.role);
+
+  const handleNavClick = (item: typeof navItems[0]) => {
+    if (item.id === 'admin') {
+      navigate('/admin');
+    } else {
+      setSearchParams({ view: item.id });
+    }
+  };
+
+  const isActive = (item: typeof navItems[0]) => {
+    if (item.id === 'admin') return location.pathname === '/admin';
+    return location.pathname === '/dashboard' && currentView === item.id;
+  };
 
   return (
     <aside className="w-72 bg-white border-r border-slate-100 flex flex-col h-screen sticky top-0">
@@ -45,17 +70,17 @@ export default function Sidebar() {
           {filteredNav.map((item) => (
             <button
               key={item.id}
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavClick(item)}
               className={cn(
                 "w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all group",
-                location.pathname === item.path
+                isActive(item)
                   ? "bg-indigo-50 text-indigo-600"
                   : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
               )}
             >
               <item.icon className={cn(
                 "w-5 h-5 transition-colors",
-                location.pathname === item.path ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                isActive(item) ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
               )} />
               {item.label}
             </button>

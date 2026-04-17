@@ -26,4 +26,5 @@ export interface TaskMasterDB {
 }
 
 export type FilterType = 'all' | 'active' | 'completed' | 'important';
+export type ViewType = 'all' | 'today' | 'important' | 'completed' | 'stats' | 'admin';
 export type SortType = 'date' | 'priority' | 'alphabetical';
